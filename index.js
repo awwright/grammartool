@@ -345,7 +345,6 @@ ExpressionZeroOrMore.prototype.toString = function toString(lev){
 ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
-	if(Expression.isEOF(chr)) return [state.end()];
 	var match0 = this.expr.match(state.push(this.expr), chr);
 	var up = state.end();
 	var match1 = up.expression && up.expression.match(up, chr);
