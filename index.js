@@ -51,8 +51,15 @@ Grammar.prototype.parseTerminal = function parse(terminalName, document){
 	var currentState = [
 		end.push(expr),
 	];
+	var line = 0;
+	var column = 0;
 	for(var offset=0; offset<document.length; offset++){
+		column++;
 		var chr = document[offset];
+		if(chr=="\n"){
+			line++;
+			column = 0;
+		}
 		var nextState = [];
 		for(var j=0; j<currentState.length; j++){
 			var st = currentState[j];
@@ -64,7 +71,9 @@ Grammar.prototype.parseTerminal = function parse(terminalName, document){
 				nextState.push(v);
 			});
 		}
-		if(nextState.length > self.complexityDepth){
+		if(!nextState.length){
+			throw new Error('Unexpected '+JSON.stringify(chr)+' line '+line+':'+column+', expected: '+currentState.map(function(v){ return v.expression.expecting(v); }).join(' / '));
+		}else if(nextState.length > self.complexityDepth){
 			// This indicates we're evaluating more options than is feasable
 			// Consider simplifying the grammar to be less ambiguous
 			throw new Error('Reached complexity depth');
@@ -85,10 +94,10 @@ Grammar.prototype.parseTerminal = function parse(terminalName, document){
 			nextState.push(v);
 		});
 	}
-
 	for(var m=0; m<nextState.length; m++){
 		if(nextState[m]===end) return currentState[m];
 	}
+	throw new Error('Unexpected <EOF> at line '+line+':'+column+', expected: '+currentState.map(function(v){ return v.expression.expecting(v); }).join(' / '));
 }
 Grammar.prototype.createParser = function createParser(terminalName){
 	if(terminalName===undefined || terminalName===null) terminalName = this.default;
@@ -123,6 +132,12 @@ SymbolReference.prototype.match = function match(state, chr){
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
 	var expr = symbol.definition;
 	return expr.match(state.end().push(expr), chr);
+}
+SymbolReference.prototype.expecting = function expecting(state){
+	var symbol = this.grammar.symbols[this.ref];
+	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
+	var expr = symbol.definition;
+	return expr.expecting(state.end().push(expr));
 }
 
 function State(expression, parent, offset){
@@ -166,6 +181,10 @@ ExpressionEOF.prototype.match = function(state, chr){
 	// We could also just set `expr.parent = expr` but that seems funny to this programmer
 	if(Expression.isEOF(chr)) return state.parent ? [state.end()] : [state];
 }
+ExpressionEOF.prototype.expecting = function expecting(state){
+	return '<EOF>';
+}
+
 
 //module.exports.ExpressionHex = ExpressionHex;
 //inherits(ExpressionHex, Expression);
@@ -200,6 +219,9 @@ ExpressionCharRange.prototype.match = function match(state, chr){
 		return [ state.end() ];
 	}
 }
+ExpressionCharRange.prototype.expecting = function expecting(state){
+	return this.toString();
+}
 
 module.exports.ExpressionString = ExpressionString;
 inherits(ExpressionString, Expression);
@@ -223,6 +245,9 @@ ExpressionString.prototype.match = function match(state, chr){
 		}
 	}
 }
+ExpressionString.prototype.expecting = function expecting(state){
+	return JSON.stringify(this.string.substring(state.offset).toString());
+}
 
 module.exports.ExpressionStringCS = ExpressionStringCS;
 inherits(ExpressionStringCS, Expression);
@@ -245,8 +270,8 @@ ExpressionStringCS.prototype.match = function match(state, chr){
 		}
 	}
 }
-ExpressionStringCS.prototype.expecting = function expecting(state, chr, next){
-	if(1) return;
+ExpressionStringCS.prototype.expecting = function expecting(state){
+	return JSON.stringify(this.string.substring(state.offset).toString());
 }
 
 module.exports.ExpressionConcat = ExpressionConcat;
@@ -278,6 +303,13 @@ ExpressionConcat.prototype.match = function match(state, chr){
 	// Pass the match call off to the item in the series
 	return expr.match(next.push(expr), chr);
 }
+ExpressionConcat.prototype.expecting = function expecting(state){
+	var self = this;
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	var expr = self.list[state.offset];
+	var next = (state.offset+1 < self.list.length) ? state.change(state.offset+1) : state.end() ;
+	return expr.expecting(next.push(expr));
+}
 
 module.exports.ExpressionAlternate = ExpressionAlternate;
 inherits(ExpressionAlternate, Expression);
@@ -303,6 +335,16 @@ ExpressionAlternate.prototype.match = function match(state, chr){
 	});
 	if(results.length) return results;
 }
+ExpressionAlternate.prototype.expecting = function expecting(state){
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	var results = [];
+	var next = state.end();
+	this.alternates.forEach(function(expr){
+		var match = expr.expecting(next.push(expr));
+		if(match) results.push(match);
+	});
+	return results.join(' / ');
+}
 
 
 module.exports.ExpressionOptional = ExpressionOptional;
@@ -325,12 +367,23 @@ ExpressionOptional.prototype.match = function match(state, chr){
 		return up.expression.match(up, chr);
 	}
 }
-
-module.exports.ExpressionOneOrMore = ExpressionOneOrMore;
-inherits(ExpressionOneOrMore, Expression);
-function ExpressionOneOrMore(expr){
-	
+ExpressionOptional.prototype.expecting = function expecting(state){
+	var expecting = [];
+	// First to parse this as another iteration of this expression
+	var match = this.expr.expecting(state.push(this.expr));
+	if(match && match.length) expecting.push(match);
+	// otherwise as a match against the parent
+	var up = state.end();
+	if(up){
+		expecting.push(up.expression.expecting(up));
+	}
+	return expecting.join(' / ');
 }
+
+//module.exports.ExpressionOneOrMore = ExpressionOneOrMore;
+//inherits(ExpressionOneOrMore, Expression);
+//function ExpressionOneOrMore(expr){
+//}
 
 module.exports.ExpressionZeroOrMore = ExpressionZeroOrMore;
 inherits(ExpressionZeroOrMore, Expression);
@@ -353,6 +406,16 @@ ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(match1) match1.forEach(function(v){ match.push(v); });
 	if(match.length) return match;
 }
+ExpressionZeroOrMore.prototype.expecting = function expecting(state){
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	var match0 = this.expr.expecting(state.push(this.expr));
+	var up = state.end();
+	var match1 = up.expression && up.expression.expecting(up);
+	var match = [];
+	if(match0) match.push(match0);
+	if(match1) match.push(match1);
+	return match.join(' / ');
+}
 
 
 // Precedence definitions
@@ -362,7 +425,7 @@ ExpressionString.prototype.precedence = 0;
 ExpressionCharRange.prototype.precedence = 0;
 ExpressionEOF.prototype.precedence = 0;
 // Modifies the thing immediately before it, parens needed for all cases except a single term by itself
-ExpressionOneOrMore.prototype.precedence = 1;
+//ExpressionOneOrMore.prototype.precedence = 1;
 ExpressionZeroOrMore.prototype.precedence = 1;
 ExpressionOptional.prototype.precedence = 1;
 // Then the rest
