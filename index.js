@@ -395,24 +395,28 @@ ExpressionOptional.prototype.toString = function toString(){
 	return this.expr.toString(this) + '?';
 }
 ExpressionOptional.prototype.match = function match(state, chr){
-	// First to parse this as another iteration of this expression
-	var match = this.expr.match(state.push(this.expr), chr);
-	if(match && match.length) return match;
-	// otherwise as a match against the parent
-	var up = state.end();
-	if(up){
-		return up.expression.match(up, chr);
-	}
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
+	// First try to parse this as the given expression
+	// The end() call ensures we're only called once
+	var match0 = this.expr.match(state.end().push(this.expr), chr);
+	// Second defer the match back to the parent
+	var parent = state.end();
+	var match1 = parent.expression.match(parent, chr);
+	var match = [];
+	if(match0) match0.forEach(function(v){ match.push(v); });
+	if(match1) match1.forEach(function(v){ match.push(v); });
+	return match;
 }
 ExpressionOptional.prototype.expecting = function expecting(state){
-	var expecting = [];
-	var match = this.expr.expecting(state.push(this.expr));
-	if(match && match.length) expecting.push(match);
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	var match0 = this.expr.expecting(state.end().push(this.expr));
 	var up = state.end();
-	if(up){
-		expecting.push(up.expression.expecting(up));
-	}
-	return expecting.join(' / ');
+	var match1 = up.expression.expecting(up);
+	var match = [];
+	if(match0) match.push(match0);
+	if(match1) match.push(match1);
+	return match.join(' / ');
 }
 
 //module.exports.ExpressionOneOrMore = ExpressionOneOrMore;
