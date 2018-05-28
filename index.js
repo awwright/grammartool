@@ -10,8 +10,8 @@ function inherits(ctor, superCtor) {
 
 function parenIf(a, b, string){
 	if(!b) return string;
-	var al = a ? a.precedence : 0 ;
-	var bl = b ? b.precedence : 0 ;
+	var al = a.precedence;
+	var bl = b.precedence;
 	return (al > bl) ? '( ' + string + ' )' : string;
 }
 
@@ -287,9 +287,9 @@ function ExpressionAlternate(alternates){
 	if(alternates.length<=1) throw new TypeError('Expected array for arguments[0] `alternates` with length >= 2');
 	this.alternates = alternates;
 }
-ExpressionAlternate.prototype.toString = function toString(){
+ExpressionAlternate.prototype.toString = function toString(lev){
 	var self = this;
-	return this.alternates.map(function(v){ return v.toString(self) }).join(' / ');
+	return parenIf(this, lev, this.alternates.map(function(v){ return v.toString(self) }).join(' / '));
 }
 ExpressionAlternate.prototype.match = function match(state, chr){
 	var self = this;
