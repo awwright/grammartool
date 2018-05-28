@@ -468,17 +468,22 @@ module.exports.ExpressionTuple = ExpressionTuple;
 inherits(ExpressionTuple, Expression);
 // Match between `min` and `max` (inclusive) matches of `expr`
 function ExpressionTuple(expr, min, max){
-	if(!(this instanceof ExpressionTuple)) return new ExpressionTuple(expr);
+	if(!(this instanceof ExpressionTuple)) return new ExpressionTuple(expr, min, max);
 	if(!(expr instanceof Expression)) throw new TypeError('Expected Expression for arguments[0] `expr`');
-	if(typeof min!='number' && min!==null) throw new TypeError('Expected number for arguments[1] `min`');
-	if(typeof max!='number' && max!==null) throw new TypeError('Expected number for arguments[2] `max`');
-	if(max<min) throw new TypeError('Expected (min < max)');
+	if(typeof min!='number') throw new TypeError('Expected number for arguments[1] `min`');
+	if(typeof max!='number' && max!==null && max!==undefined) throw new TypeError('Expected number for arguments[2] `max`');
+	if(0 > min) throw new TypeError('Expected (min >= 0)');
+	if(typeof max=='number' && min > max) throw new TypeError('Expected (min <= max)');
 	this.expr = expr;
 	this.min = min;
-	this.max = max;
+	this.max = (typeof max=='number') ? max : 1/0;
 }
 ExpressionTuple.prototype.toString = function toString(lev){
-	return parenIf(this, lev, this.expr.toString(this) + '*');
+	if(this.min===1 && this.max===null){
+		return parenIf(this, lev, this.expr.toString(this) + '*');
+	}else{
+		return parenIf(this, lev, this.expr.toString(this) + '{' + this.min + ',' + (typeof this.max=='number' ? this.max : 'inf') + '}');
+	}
 }
 ExpressionTuple.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
