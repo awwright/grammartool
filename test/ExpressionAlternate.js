@@ -11,6 +11,18 @@ describe('ExpressionAlternate', function() {
 		]);
 		assert(a instanceof p.ExpressionAlternate);
 	});
+	it('Requires array argument', function() {
+		assert.throws(function(){
+			new p.ExpressionAlternate("1");
+		});
+	});
+	it('Requires non-empty array argument', function() {
+		assert.throws(function(){
+			new p.ExpressionAlternate([
+				new p.ExpressionString("1"),
+			]);
+		});
+	});
 	it('ExpressionString', function() {
 			var Grammar = new p.Grammar;
 			Grammar.define('root', new p.ExpressionAlternate([

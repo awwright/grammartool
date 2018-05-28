@@ -4,7 +4,7 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionCharRange', function() {
-	it('ExpressionAlternate returns instance', function() {
+	it('ExpressionCharRange returns instance', function() {
 		var a = p.ExpressionCharRange([ 'a' ]);
 		assert(a instanceof p.ExpressionCharRange);
 	});

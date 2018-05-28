@@ -8,12 +8,6 @@ describe('ExpressionString', function() {
 		var a = p.ExpressionString('a');
 		assert(a instanceof p.ExpressionString);
 	});
-	it('Empty string', function() {
-		assert.throws(function(){
-			var Grammar = new p.Grammar;
-			Grammar.define('root', new p.ExpressionString(""));
-		});
-	});
 	it('Requires string argument', function() {
 		assert.throws(function(){
 			var Grammar = new p.Grammar;
@@ -21,6 +15,12 @@ describe('ExpressionString', function() {
 		});
 	});
 	it('Requires non-empty argument', function() {
+		assert.throws(function(){
+			var Grammar = new p.Grammar;
+			Grammar.define('root', new p.ExpressionString(""));
+		});
+	});
+	it('Empty string', function() {
 		assert.throws(function(){
 			var Grammar = new p.Grammar;
 			Grammar.define('root', new p.ExpressionString(""));

@@ -4,6 +4,13 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionConcat', function() {
+	it('ExpressionConcat returns instance', function() {
+		var a = p.ExpressionConcat([
+			new p.ExpressionString("0"),
+			new p.ExpressionString("1"),
+		]);
+		assert(a instanceof p.ExpressionConcat);
+	});
 	it('long string', function() {
 			var Grammar = new p.Grammar;
 			Grammar.define('root', new p.ExpressionConcat([
