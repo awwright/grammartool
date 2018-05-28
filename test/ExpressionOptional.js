@@ -4,6 +4,10 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionOptional', function() {
+	it('ExpressionOptional returns instance', function() {
+		var a = p.ExpressionOptional(new p.ExpressionString("foo"));
+		assert(a instanceof p.ExpressionOptional);
+	});
 	it('Requires Expression argument', function() {
 		assert.throws(function(){
 			new p.ExpressionOptional("1");

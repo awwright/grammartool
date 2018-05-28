@@ -21,7 +21,7 @@ function encodeString(s) {
 		var code = s.charCodeAt(i);
 		if(0xD800<=code && code<=0xDBFF) {
 			var low = s.charCodeAt(i + 1);
-			if(low>=0xDC00 || low<=0xDFFF){
+			if(low>=0xDC00 && low<=0xDFFF){
 				code = (code - 0xD800) * 1024 + (low - 0xDC00) + 0x10000;
 				i++;
 			}
@@ -108,8 +108,6 @@ Grammar.prototype.parseTerminal = function parse(terminalName, document){
 	var nextState = [];
 	for(var j=0; j<currentState.length; j++){
 		var st = currentState[j];
-		// If the document is trying to match more characters than the grammar has specified, we will hit here
-		if(st.expression===null) continue;
 		var matches = st.expression.match(st, null);
 		if(matches && !Array.isArray(matches)) throw new TypeError('Expected an array from Expression#match');
 		if(matches) matches.forEach(function(v){
@@ -220,11 +218,20 @@ inherits(ExpressionCharRange, Expression);
 function ExpressionCharRange(list){
 	if(!(this instanceof ExpressionCharRange)) return new ExpressionCharRange(list);
 	if(!Array.isArray(list)) throw new TypeError('Expected an array for arguments[0] `list`');
+	if(list.length < 1) throw new TypeError('Expected an non-empty array for arguments[0] `list`');
 	list.forEach(function(item){
 		if(typeof item!='string') throw new TypeError('Expected an array of strings for arguments[0] `list`');
-		if(item.length==1) return;
-		if(item.length==2) return;
-		if(item.length==3 && item[1]=='-') return;
+		if(item.length==1){
+			return;
+		}
+		if(item.length==2){
+			if(item.charCodeAt(0) >= item.charCodeAt(1)) throw new Error('Range expression out of order: '+JSON.stringify(item));
+			return;
+		}
+		if(item.length==3 && item[1]=='-'){
+			if(item.charCodeAt(0) >= item.charCodeAt(2)) throw new Error('Range expression out of order: '+JSON.stringify(item));
+			return;
+		}
 		throw new TypeError('Unknown range item');
 	});
 	this.list = list.slice();
