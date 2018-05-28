@@ -15,6 +15,31 @@ function parenIf(a, b, string){
 	return (al > bl) ? '( ' + string + ' )' : string;
 }
 
+function encodeString(s) {
+	var out = "";
+	for(var i=0; i<s.length; i++) {
+		var code = s.charCodeAt(i);
+		if(0xD800<=code && code<=0xDBFF) {
+			var low = s.charCodeAt(i + 1);
+			if(low>=0xDC00 || low<=0xDFFF){
+				code = (code - 0xD800) * 1024 + (low - 0xDC00) + 0x10000;
+				i++;
+			}
+		}
+		if(code > 0x10FFFF) throw new Error("Char out of range");
+		var hex = "0000".concat((new Number(code)).toString(16).toUpperCase());
+		if(code >= 65536) {
+			out += "#x" + hex;
+		} else if(code >= 127 || code <= 31) {
+				out += "#x" + hex.slice(-4);
+		} else {
+			out += s.charAt(i);
+		}
+	}
+	return out;
+};
+
+
 module.exports.Grammar = Grammar;
 function Grammar(){
 	this.symbols = {};
@@ -202,10 +227,11 @@ function ExpressionCharRange(list){
 		if(item.length==3 && item[1]=='-') return;
 		throw new TypeError('Unknown range item');
 	});
-	this.list = list;
+	this.list = list.slice();
+	this.list.sort();
 }
 ExpressionCharRange.prototype.toString = function toString(){
-	return '[ ' + this.list.map(function(v){ return JSON.stringify(v); }).join(' | ') + ' ]';
+	return '[ ' + this.list.map(function(v){ return encodeString(v); }).join(' | ') + ' ]';
 }
 ExpressionCharRange.prototype.concat = function concat(other){
 	return new ExpressionCharRange( this.list.concat(other) );
@@ -402,7 +428,7 @@ ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	var match0 = this.expr.match(state.push(this.expr), chr);
 	var up = state.end();
-	var match1 = up.expression && up.expression.match(up, chr);
+	var match1 = up.expression.match(up, chr);
 	var match = [];
 	if(match0) match0.forEach(function(v){ match.push(v); });
 	if(match1) match1.forEach(function(v){ match.push(v); });
@@ -412,7 +438,7 @@ ExpressionZeroOrMore.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	var match0 = this.expr.expecting(state.push(this.expr));
 	var up = state.end();
-	var match1 = up.expression && up.expression.expecting(up);
+	var match1 = up.expression.expecting(up);
 	var match = [];
 	if(match0) match.push(match0);
 	if(match1) match.push(match1);
@@ -430,7 +456,8 @@ ExpressionEOF.prototype.precedence = 0;
 //ExpressionOneOrMore.prototype.precedence = 1;
 ExpressionZeroOrMore.prototype.precedence = 1;
 ExpressionOptional.prototype.precedence = 1;
-// Then the rest
+// A series doesn't need parens inside alternatives
 ExpressionConcat.prototype.precedence = 2;
+// Finally alternate
 ExpressionAlternate.prototype.precedence = 3;
 
