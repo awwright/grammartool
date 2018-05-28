@@ -188,6 +188,19 @@ Expression.EOF = null;
 Expression.isEOF = function(v){
 	return v===Expression.EOF;
 }
+Expression.prototype.optional = function optional(){
+	return new ExpressionOptional(this);
+}
+Expression.prototype.any = function repeat(min, max){
+	return new ExpressionZeroOrMore(this);
+}
+Expression.prototype.repeat = function repeat(min, max){
+	if(min===undefined && max===undefined){
+		return new ExpressionZeroOrMore(this);
+	}else{
+		return new ExpressionTuple(this, min, max);
+	}
+}
 
 // Only matches an EOF
 module.exports.ExpressionEOF = ExpressionEOF;
@@ -419,11 +432,6 @@ ExpressionOptional.prototype.expecting = function expecting(state){
 	return match.join(' / ');
 }
 
-//module.exports.ExpressionOneOrMore = ExpressionOneOrMore;
-//inherits(ExpressionOneOrMore, Expression);
-//function ExpressionOneOrMore(expr){
-//}
-
 module.exports.ExpressionZeroOrMore = ExpressionZeroOrMore;
 inherits(ExpressionZeroOrMore, Expression);
 function ExpressionZeroOrMore(expr){
@@ -456,6 +464,50 @@ ExpressionZeroOrMore.prototype.expecting = function expecting(state){
 	return match.join(' / ');
 }
 
+module.exports.ExpressionTuple = ExpressionTuple;
+inherits(ExpressionTuple, Expression);
+// Match between `min` and `max` (inclusive) matches of `expr`
+function ExpressionTuple(expr, min, max){
+	if(!(this instanceof ExpressionTuple)) return new ExpressionTuple(expr);
+	if(!(expr instanceof Expression)) throw new TypeError('Expected Expression for arguments[0] `expr`');
+	if(typeof min!='number' && min!==null) throw new TypeError('Expected number for arguments[1] `min`');
+	if(typeof max!='number' && max!==null) throw new TypeError('Expected number for arguments[2] `max`');
+	if(max<min) throw new TypeError('Expected (min < max)');
+	this.expr = expr;
+	this.min = min;
+	this.max = max;
+}
+ExpressionTuple.prototype.toString = function toString(lev){
+	return parenIf(this, lev, this.expr.toString(this) + '*');
+}
+ExpressionTuple.prototype.match = function match(state, chr){
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
+	if(state.offset < this.max){
+		// If we haven't hit the max, test for another repeat
+		var match0 = this.expr.match(state.change(state.offset+1).push(this.expr), chr);
+	}
+	if(state.offset >= this.min){
+		// If we're past the minimum required matches, pass this match back to parent
+		var up = state.end();
+		var match1 = up.expression.match(up, chr);
+	}
+	var match = [];
+	if(match0) match0.forEach(function(v){ match.push(v); });
+	if(match1) match1.forEach(function(v){ match.push(v); });
+	if(match.length) return match;
+}
+ExpressionTuple.prototype.expecting = function expecting(state){
+	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
+	var match0 = this.expr.expecting(state.push(this.expr));
+	var up = state.end();
+	var match1 = up.expression.expecting(up);
+	var match = [];
+	if(match0) match.push(match0);
+	if(match1) match.push(match1);
+	return match.join(' / ');
+}
+
 
 // Precedence definitions
 // Things that can't nest other things
@@ -464,8 +516,8 @@ ExpressionString.prototype.precedence = 0;
 ExpressionCharRange.prototype.precedence = 0;
 ExpressionEOF.prototype.precedence = 0;
 // Modifies the thing immediately before it, parens needed for all cases except a single term by itself
-//ExpressionOneOrMore.prototype.precedence = 1;
 ExpressionZeroOrMore.prototype.precedence = 1;
+ExpressionTuple.prototype.precedence = 1;
 ExpressionOptional.prototype.precedence = 1;
 // A series doesn't need parens inside alternatives
 ExpressionConcat.prototype.precedence = 2;

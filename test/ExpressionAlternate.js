@@ -4,23 +4,25 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionAlternate', function() {
-	it('ExpressionAlternate returns instance', function() {
-		var a = p.ExpressionAlternate([
-			new p.ExpressionString("0"),
-			new p.ExpressionString("1"),
-		]);
-		assert(a instanceof p.ExpressionAlternate);
-	});
-	it('Requires array argument', function() {
-		assert.throws(function(){
-			new p.ExpressionAlternate("1");
-		});
-	});
-	it('Requires non-empty array argument', function() {
-		assert.throws(function(){
-			new p.ExpressionAlternate([
+	describe('interface', function(){
+		it('ExpressionAlternate returns instance', function() {
+			var a = p.ExpressionAlternate([
+				new p.ExpressionString("0"),
 				new p.ExpressionString("1"),
 			]);
+			assert(a instanceof p.ExpressionAlternate);
+		});
+		it('Requires array argument', function() {
+			assert.throws(function(){
+				new p.ExpressionAlternate("1");
+			});
+		});
+		it('Requires non-empty array argument', function() {
+			assert.throws(function(){
+				new p.ExpressionAlternate([
+					new p.ExpressionString("1"),
+				]);
+			});
 		});
 	});
 	it('ExpressionString', function() {
