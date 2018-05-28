@@ -27,11 +27,11 @@ function encodeString(s) {
 			}
 		}
 		if(code > 0x10FFFF) throw new Error("Char out of range");
-		var hex = "0000".concat((new Number(code)).toString(16).toUpperCase());
+		var hex = (new Number(code)).toString(16).toUpperCase();
 		if(code >= 65536) {
 			out += "#x" + hex;
 		} else if(code >= 127 || code <= 31) {
-				out += "#x" + hex.slice(-4);
+				out += "#x" + "0000".concat(hex).slice(-4);
 		} else {
 			out += s.charAt(i);
 		}
@@ -263,7 +263,7 @@ function ExpressionString(literal){
 	this.lstring = literal.toLowerCase();
 }
 ExpressionString.prototype.toString = function toString(){
-	return JSON.stringify(this.string);
+	return '"' + encodeString(this.string) + '"';
 }
 ExpressionString.prototype.match = function match(state, chr){
 	if(Expression.isEOF(chr)) return;
@@ -276,7 +276,7 @@ ExpressionString.prototype.match = function match(state, chr){
 	}
 }
 ExpressionString.prototype.expecting = function expecting(state){
-	return JSON.stringify(this.string.substring(state.offset).toString());
+	return '"' + encodeString(this.string.substring(state.offset).toString()) + '"';
 }
 
 module.exports.ExpressionStringCS = ExpressionStringCS;
@@ -288,7 +288,7 @@ function ExpressionStringCS(literal){
 	this.string = literal;
 }
 ExpressionStringCS.prototype.toString = function toString(){
-	return JSON.stringify(this.string);
+	return "'" + encodeString(this.string) + "'";
 }
 ExpressionStringCS.prototype.match = function match(state, chr){
 	if(Expression.isEOF(chr)) return;
