@@ -12,7 +12,7 @@ describe('ExpressionEOF', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', new p.ExpressionEOF);
 		it('Any content is invalid', function() {
-			assert.ok(!Grammar.parse('a'));
+			assert.throws(function(){ Grammar.parse('a'); });
 		});
 		it('Empty document is valid', function() {
 			assert.ok(Grammar.parse(''));

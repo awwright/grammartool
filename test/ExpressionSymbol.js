@@ -16,17 +16,17 @@ describe('ExpressionSymbol', function() {
 		Grammar.define('b', new p.ExpressionString("b"));
 		assert.ok(Grammar.parseTerminal("a", 'a'));
 		assert.ok(Grammar.parseTerminal("b", 'b'));
-		assert.ok(!Grammar.parseTerminal("a", 'b'));
-		assert.ok(!Grammar.parseTerminal("b", 'a'));
+		assert.throws(function(){ Grammar.parseTerminal("a", 'b'); });
+		assert.throws(function(){ Grammar.parseTerminal("b", 'a'); });
 		assert.ok(Grammar.parse('a'));
-		assert.ok(!Grammar.parse('b'));
+		assert.throws(function(){ Grammar.parse('b'); });
 	});
 	it('nested references', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', Grammar.reference('a'));
 		Grammar.define('a', new p.ExpressionString("string"));
 		assert.ok(Grammar.parseTerminal('root', 'string'));
-		assert.ok(!Grammar.parseTerminal('root', 'a'));
+		assert.throws(function(){ Grammar.parseTerminal('root', 'a'); });
 	});
 	it('unknown symbol throws', function() {
 		var Grammar = new p.Grammar;

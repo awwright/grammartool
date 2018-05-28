@@ -14,11 +14,11 @@ describe('ExpressionZeroOrMore', function() {
 			assert.ok(Grammar.parse('01230123'));
 			assert.ok(Grammar.parse('012301230123'));
 			assert.ok(Grammar.parse('0123012301230123'));
-			assert.ok(!Grammar.parse(' '));
-			assert.ok(!Grammar.parse(' 0123'));
-			assert.ok(!Grammar.parse('0123 '));
-			assert.ok(!Grammar.parse('01230'));
-			assert.ok(!Grammar.parse('012301'));
+			assert.throws(function(){ Grammar.parse(' '); });
+			assert.throws(function(){ Grammar.parse(' 0123'); });
+			assert.throws(function(){ Grammar.parse('0123 '); });
+			assert.throws(function(){ Grammar.parse('01230'); });
+			assert.throws(function(){ Grammar.parse('012301'); });
 	});
 	it('0 matches', function() {
 			var Grammar = new p.Grammar;

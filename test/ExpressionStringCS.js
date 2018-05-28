@@ -29,20 +29,20 @@ describe('ExpressionStringCS', function() {
 	it('Case sensitive', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', new p.ExpressionStringCS("Abc"));
-		assert.ok(!Grammar.parse('ABC'));
-		assert.ok(!Grammar.parse('abc'));
+		assert.throws(function(){ Grammar.parse('ABC'); });
+		assert.throws(function(){ Grammar.parse('abc'); });
 		assert.ok(Grammar.parse('Abc'));
-		assert.ok(!Grammar.parse('aBc'));
-		assert.ok(!Grammar.parse('abC'));
-		assert.ok(!Grammar.parse('cba'));
+		assert.throws(function(){ Grammar.parse('aBc'); });
+		assert.throws(function(){ Grammar.parse('abC'); });
+		assert.throws(function(){ Grammar.parse('cba'); });
 	});
 	it('Nonempty string', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', new p.ExpressionStringCS("0"));
 		assert.ok(Grammar.parse('0'));
-		assert.ok(!Grammar.parse('00'));
-		assert.ok(!Grammar.parse(''));
-		assert.ok(!Grammar.parse(' '));
-		assert.ok(!Grammar.parse('_'));
+		assert.throws(function(){ Grammar.parse('00'); });
+		assert.throws(function(){ Grammar.parse(''); });
+		assert.throws(function(){ Grammar.parse(' '); });
+		assert.throws(function(){ Grammar.parse('_'); });
 	});
 });

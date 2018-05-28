@@ -12,14 +12,14 @@ describe('ExpressionConcat', function() {
 				new p.ExpressionString("2"),
 				new p.ExpressionString("3"),
 			]));
-			assert.ok(!Grammar.parse(''));
-			assert.ok(!Grammar.parse('0'));
-			assert.ok(!Grammar.parse('01'));
-			assert.ok(!Grammar.parse('012'));
+			assert.throws(function(){ Grammar.parse(''); });
+			assert.throws(function(){ Grammar.parse('0'); });
+			assert.throws(function(){ Grammar.parse('01'); });
+			assert.throws(function(){ Grammar.parse('012'); });
 			assert.ok(Grammar.parse('0123'));
-			assert.ok(!Grammar.parse('0123 '));
-			assert.ok(!Grammar.parse('0 123'));
-			assert.ok(!Grammar.parse('01234'));
+			assert.throws(function(){ Grammar.parse('0123 '); });
+			assert.throws(function(){ Grammar.parse('0 123'); });
+			assert.throws(function(){ Grammar.parse('01234'); });
 	});
 	it('.WS', function() {
 			var Grammar = new p.Grammar;
@@ -33,12 +33,12 @@ describe('ExpressionConcat', function() {
 				new p.ExpressionString("3"),
 			]).WS(LWS) );
 
-			assert.ok(!Grammar.parse(''));
-			assert.ok(!Grammar.parse('0'));
-			assert.ok(!Grammar.parse('01'));
-			assert.ok(!Grammar.parse('012'));
+			assert.throws(function(){ Grammar.parse(''); });
+			assert.throws(function(){ Grammar.parse('0'); });
+			assert.throws(function(){ Grammar.parse('01'); });
+			assert.throws(function(){ Grammar.parse('012'); });
 			assert.ok(Grammar.parse('0123'));
-			assert.ok(!Grammar.parse('01234'));
+			assert.throws(function(){ Grammar.parse('01234'); });
 			assert.ok(Grammar.parse('0123 '));
 			assert.ok(Grammar.parse('0 123'));
 			assert.ok(Grammar.parse('0 1  2   3    '));

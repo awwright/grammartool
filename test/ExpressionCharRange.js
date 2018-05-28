@@ -14,21 +14,21 @@ describe('ExpressionCharRange', function() {
 	it('ExpressionCharRange', function() {
 		assert.ok(Grammar.parse('a'));
 		assert.ok(Grammar.parse('b'));
-		assert.ok(!Grammar.parse('c'));
+		assert.throws(function(){ Grammar.parse('c'); });
 		assert.ok(Grammar.parse('d'));
 		assert.ok(Grammar.parse('e'));
-		assert.ok(!Grammar.parse('f'));
-		assert.ok(!Grammar.parse('g'));
-		assert.ok(!Grammar.parse('h'));
+		assert.throws(function(){ Grammar.parse('f'); });
+		assert.throws(function(){ Grammar.parse('g'); });
+		assert.throws(function(){ Grammar.parse('h'); });
 		assert.ok(Grammar.parse('i'));
 		assert.ok(Grammar.parse('j'));
 		assert.ok(Grammar.parse('k'));
 		assert.ok(Grammar.parse('l'));
-		assert.ok(!Grammar.parse('m'));
+		assert.throws(function(){ Grammar.parse('m'); });
 		// ...
-		assert.ok(!Grammar.parse('x'));
+		assert.throws(function(){ Grammar.parse('x'); });
 		assert.ok(Grammar.parse('y'));
-		assert.ok(!Grammar.parse('z'));
-		assert.ok(!Grammar.parse(''));
+		assert.throws(function(){ Grammar.parse('z'); });
+		assert.throws(function(){ Grammar.parse(''); });
 	});
 });

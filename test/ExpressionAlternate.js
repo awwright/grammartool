@@ -20,11 +20,11 @@ describe('ExpressionAlternate', function() {
 			]));
 			assert.ok(Grammar.parse('01234'));
 			assert.ok(Grammar.parse(' 1234'));
-			assert.ok(!Grammar.parse(' 123'));
+			assert.throws(function(){ Grammar.parse(' 123') });
 			assert.ok(Grammar.parse(' 12'));
-			assert.ok(!Grammar.parse(' 1'));
-			assert.ok(!Grammar.parse(' '));
-			assert.ok(!Grammar.parse(''));
+			assert.throws(function(){ Grammar.parse(' 1') });
+			assert.throws(function(){ Grammar.parse(' ') });
+			assert.throws(function(){ Grammar.parse('') });
 	});
 	it('#toString', function() {
 			var Grammar = new p.Grammar;
@@ -53,14 +53,14 @@ describe('ExpressionAlternate', function() {
 			assert.ok(Grammar.parse('1'));
 			assert.ok(Grammar.parse('2'));
 			assert.ok(Grammar.parse('3'));
-			assert.ok(!Grammar.parse('4'));
+			assert.throws(function(){ Grammar.parse('4') });
 			assert.ok(Grammar.parse('.1'));
 			assert.ok(Grammar.parse('.2'));
 			assert.ok(Grammar.parse('.3'));
-			assert.ok(!Grammar.parse('.4'));
-			assert.ok(!Grammar.parse('10'));
-			assert.ok(!Grammar.parse('20'));
-			assert.ok(!Grammar.parse('30'));
+			assert.throws(function(){ Grammar.parse('.4') });
+			assert.throws(function(){ Grammar.parse('10') });
+			assert.throws(function(){ Grammar.parse('20') });
+			assert.throws(function(){ Grammar.parse('30') });
 			assert.ok(Grammar.parse('const'));
 	});
 });

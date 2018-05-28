@@ -369,10 +369,8 @@ ExpressionOptional.prototype.match = function match(state, chr){
 }
 ExpressionOptional.prototype.expecting = function expecting(state){
 	var expecting = [];
-	// First to parse this as another iteration of this expression
 	var match = this.expr.expecting(state.push(this.expr));
 	if(match && match.length) expecting.push(match);
-	// otherwise as a match against the parent
 	var up = state.end();
 	if(up){
 		expecting.push(up.expression.expecting(up));
