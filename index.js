@@ -63,8 +63,6 @@ Grammar.prototype.parseTerminal = function parse(terminalName, document){
 		var nextState = [];
 		for(var j=0; j<currentState.length; j++){
 			var st = currentState[j];
-			// If the document is trying to match more characters than the grammar has specified, we will hit here
-			if(st.expression===null) continue;
 			var matches = st.expression.match(st, chr);
 			if(matches) matches.forEach(function(v){
 				if(!(v instanceof State)) throw new TypeError('Expected an array of State items');
@@ -197,7 +195,13 @@ inherits(ExpressionCharRange, Expression);
 function ExpressionCharRange(list){
 	if(!(this instanceof ExpressionCharRange)) return new ExpressionCharRange(list);
 	if(!Array.isArray(list)) throw new TypeError('Expected an array for arguments[0] `list`');
-	list.forEach(function(item){ if(typeof item!='string') throw new TypeError('Expected an array of strings for arguments[0] `list`'); });
+	list.forEach(function(item){
+		if(typeof item!='string') throw new TypeError('Expected an array of strings for arguments[0] `list`');
+		if(item.length==1) return;
+		if(item.length==2) return;
+		if(item.length==3 && item[1]=='-') return;
+		throw new TypeError('Unknown range item');
+	});
 	this.list = list;
 }
 ExpressionCharRange.prototype.toString = function toString(){

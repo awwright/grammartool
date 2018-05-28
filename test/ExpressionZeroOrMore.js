@@ -4,6 +4,11 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionZeroOrMore', function() {
+	it('Requires Expression argument', function() {
+		assert.throws(function(){
+			new p.ExpressionZeroOrMore("1");
+		});
+	});
 	it('long string', function() {
 			var Grammar = new p.Grammar;
 			Grammar.define('root', new p.ExpressionZeroOrMore(

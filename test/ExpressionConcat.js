@@ -11,6 +11,18 @@ describe('ExpressionConcat', function() {
 		]);
 		assert(a instanceof p.ExpressionConcat);
 	});
+	it('Requires array argument', function() {
+		assert.throws(function(){
+			new p.ExpressionConcat("foo");
+		});
+	});
+	it('Requires non-empty array argument', function() {
+		assert.throws(function(){
+			new p.ExpressionConcat([
+				new p.ExpressionString("1"),
+			]);
+		});
+	});
 	it('long string', function() {
 			var Grammar = new p.Grammar;
 			Grammar.define('root', new p.ExpressionConcat([
