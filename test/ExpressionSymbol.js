@@ -14,10 +14,10 @@ describe('ExpressionSymbol', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('a', new p.ExpressionString("a"));
 		Grammar.define('b', new p.ExpressionString("b"));
-		assert.ok(Grammar.parseTerminal("a", 'a'));
-		assert.ok(Grammar.parseTerminal("b", 'b'));
-		assert.throws(function(){ Grammar.parseTerminal("a", 'b'); });
-		assert.throws(function(){ Grammar.parseTerminal("b", 'a'); });
+		assert.ok(Grammar.parseExpression("a", 'a'));
+		assert.ok(Grammar.parseExpression("b", 'b'));
+		assert.throws(function(){ Grammar.parseExpression("a", 'b'); });
+		assert.throws(function(){ Grammar.parseExpression("b", 'a'); });
 		assert.ok(Grammar.parse('a'));
 		assert.throws(function(){ Grammar.parse('b'); });
 	});
@@ -25,15 +25,15 @@ describe('ExpressionSymbol', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', Grammar.reference('a'));
 		Grammar.define('a', new p.ExpressionString("string"));
-		assert.ok(Grammar.parseTerminal('root', 'string'));
-		assert.throws(function(){ Grammar.parseTerminal('root', 'a'); });
+		assert.ok(Grammar.parseExpression('root', 'string'));
+		assert.throws(function(){ Grammar.parseExpression('root', 'a'); });
 	});
 	it('unknown symbol throws', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', Grammar.reference('a'));
 		Grammar.define('b', new p.ExpressionString("string"));
 		assert.throws(function(){
-			Grammar.parseTerminal('root', 'string');
+			Grammar.parseExpression('root', 'string');
 		});
 	});
 });

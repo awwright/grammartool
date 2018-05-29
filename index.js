@@ -64,9 +64,9 @@ Grammar.prototype.toString = function toString(lev){
 	return parenIf(this, lev, str);
 }
 Grammar.prototype.parse = function parse(document){
-	return this.parseTerminal(this.default, document);
+	return this.parseExpression(this.default, document);
 }
-Grammar.prototype.parseTerminal = function parse(terminalName, document){
+Grammar.prototype.parseExpression = function parse(terminalName, document){
 	var self = this;
 	if(terminalName===undefined || terminalName===null) terminalName = this.default;
 	if(typeof document!=='string') throw new TypeError('Expected string for arguments[1] `document`');
