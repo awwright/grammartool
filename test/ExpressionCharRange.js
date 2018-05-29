@@ -4,7 +4,7 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionCharRange', function() {
-	describe('interface', function(){
+	describe('[constructor]', function(){
 		it('ExpressionCharRange returns instance', function() {
 			var a = p.ExpressionCharRange([ 'a' ]);
 			assert(a instanceof p.ExpressionCharRange);
@@ -50,7 +50,7 @@ describe('ExpressionCharRange', function() {
 			});
 		});
 	});
-	describe('parser', function(){
+	describe('parse', function(){
 		var Grammar = new p.Grammar;
 		Grammar.define('root', new p.ExpressionCharRange(['a', 'b', 'de', 'i-l', 'y']));
 		it('ExpressionCharRange', function() {

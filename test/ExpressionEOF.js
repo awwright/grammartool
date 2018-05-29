@@ -4,9 +4,11 @@ var assert = require('assert');
 var p = require('../index.js');
 
 describe('ExpressionEOF', function() {
-	it('ExpressionEOF returns instance', function() {
-		var a = p.ExpressionEOF([ 'a' ]);
-		assert(a instanceof p.ExpressionEOF);
+	describe('[constructor]', function() {
+		it('ExpressionEOF returns instance', function() {
+			var a = p.ExpressionEOF([ 'a' ]);
+			assert(a instanceof p.ExpressionEOF);
+		});
 	});
 	describe('parse', function() {
 		var Grammar = new p.Grammar;

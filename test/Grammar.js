@@ -3,7 +3,7 @@ var assert = require('assert');
 
 var p = require('../index.js');
 
-describe('ExpressionStringCS', function() {
+describe('Grammar', function() {
 	it('Grammar#toString', function() {
 		var Grammar = new p.Grammar;
 		Grammar.define('root', new p.ExpressionZeroOrMore(new p.ExpressionAlternate([
