@@ -47,10 +47,14 @@ function Grammar(){
 	this.default = null;
 	this.defaultWS = null;
 	this.complexityDepth = 10;
+	this.uppercaseTerminals = true;
 }
 Grammar.prototype.define = function define(name, expression){
 	this.symbols[name] = new Symbol(name, expression);
 	if(this.default===null) this.default = name;
+	if(this.uppercaseTerminals){
+		this.terminal = (name===name.toUpperCase() && name!==name.toLowerCase());
+	}
 }
 Grammar.prototype.reference = function reference(name){
 	this.referenced[name] = null;
