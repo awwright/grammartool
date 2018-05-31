@@ -139,6 +139,9 @@ function Symbol(name, definition){
 Symbol.prototype.toString = function toString(lev){
 	return this.name + ' ::= ' + this.definition.toString();
 }
+Symbol.prototype.toRegExp = function toString(lev){
+	return new RegExp('^'+this.definition.toRegExpString()+'$');
+}
 
 module.exports.SymbolReference = SymbolReference;
 inherits(SymbolReference, Expression);
@@ -149,6 +152,11 @@ function SymbolReference(grammar, refName){
 }
 SymbolReference.prototype.toString = function toString(){
 	return this.ref;
+}
+SymbolReference.prototype.toRegExpString = function toRegExpString(){
+	var symbol = this.grammar.symbols[this.ref];
+	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
+	return symbol.definition.toRegExpString();
 }
 SymbolReference.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -257,6 +265,27 @@ function ExpressionCharRange(list){
 ExpressionCharRange.prototype.toString = function toString(){
 	return '[ ' + this.list.map(function(v){ return encodeString(v); }).join(' | ') + ' ]';
 }
+ExpressionCharRange.prototype.toRegExpString = function toString(){
+	function esc(c){
+		var cn = c.charCodeAt(0);
+		switch(c){
+			case '\\':
+			case ']':
+				 return '\\'+c;
+			default:
+				if(cn>=0x7F || cn<0x20){
+					return '\\u' + '0000'.concat(cn.toString(16).toUpperCase()).substr(-4);
+				}else{
+					return c;
+				}
+		}
+	}
+	return '[' + this.list.map(function(t){
+		if(t.length==1) return esc(t[0]);
+		if(t.length==2) return esc(t[0]) + '-' + esc(t[1]);
+		if(t.length==3 && t[1]=='-') return esc(t[0]) + '-' + esc(t[2]);
+	}).join('') + ']';
+}
 ExpressionCharRange.prototype.concat = function concat(other){
 	return new ExpressionCharRange( this.list.concat(other) );
 }
@@ -289,6 +318,41 @@ function ExpressionString(literal){
 ExpressionString.prototype.toString = function toString(){
 	return '"' + encodeString(this.string) + '"';
 }
+ExpressionString.prototype.toRegExpString = function toRegExpString(){
+	var out = '';
+	var a_c = 'a'.charCodeAt(0);
+	var z_c = 'z'.charCodeAt(0);
+	for(var i=0; i<this.lstring.length; i++){
+		var c = this.lstring[i];
+		var cn = this.lstring.charCodeAt(i);
+		if(cn>=a_c && cn<=z_c){
+			out += '['+c.toUpperCase()+c.toLowerCase()+']';
+			continue;
+		}
+		switch(c){
+			case '\\':
+			case '(':
+			case ')':
+			case '[':
+			case ']':
+			case '$':
+			case '^':
+			case '*':
+			case '+':
+			case '?':
+				out += '\\'+c;
+				continue;
+			default:
+				if(cn>=0x7F || cn<0x20){
+					out += '\\u' + '0000'.concat(cn.toString(16).toUpperCase()).substr(-4);
+				}else{
+					out += c;
+				}
+				continue;
+		}
+	}
+	return out;
+}
 ExpressionString.prototype.match = function match(state, chr){
 	if(Expression.isEOF(chr)) return;
 	if(chr.toLowerCase().charCodeAt(0)==this.lstring.charCodeAt(state.offset)){
@@ -314,6 +378,35 @@ function ExpressionStringCS(literal){
 ExpressionStringCS.prototype.toString = function toString(){
 	return "'" + encodeString(this.string) + "'";
 }
+ExpressionStringCS.prototype.toRegExpString = function toRegExpString(){
+	var out = '';
+	for(var i=0; i<this.lstring.length; i++){
+		var c = this.lstring[i];
+		var cn = this.lstring.charCodeAt(i);
+		if(cn>=0x7F || cn<0x20){
+			out += '\\u' + '0000'.concat(cn.toString(16).toUpperCase()).substr(-4);
+			continue;
+		}
+		switch(c){
+			case '\\':
+			case '(':
+			case ')':
+			case '[':
+			case ']':
+			case '$':
+			case '^':
+			case '*':
+			case '+':
+			case '?':
+				out += '\\'+c;
+				continue;
+			default:
+				out += c;
+				continue;
+		}
+	}
+	return out;
+}
 ExpressionStringCS.prototype.match = function match(state, chr){
 	if(Expression.isEOF(chr)) return;
 	if(chr.charCodeAt(0)==this.string.charCodeAt(state.offset)){
@@ -338,6 +431,9 @@ function ExpressionConcat(list){
 }
 ExpressionConcat.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.list.map(function(v){ return v.toString(this) }).join(' '));
+}
+ExpressionConcat.prototype.toRegExpString = function toRegExpString(){
+	return this.list.map(function(v){ return v.toRegExpString(); }).join('');
 }
 ExpressionConcat.prototype.WS = function WS(ws){
 	var list = [];
@@ -377,6 +473,9 @@ ExpressionAlternate.prototype.toString = function toString(lev){
 	var self = this;
 	return parenIf(this, lev, this.alternates.map(function(v){ return v.toString(self) }).join(' / '));
 }
+ExpressionAlternate.prototype.toRegExpString = function toRegExpString(){
+	return '('+this.alternates.map(function(v){ return v.toRegExpString(); }).join('|')+')';
+}
 ExpressionAlternate.prototype.match = function match(state, chr){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -410,6 +509,9 @@ function ExpressionOptional(expr){
 }
 ExpressionOptional.prototype.toString = function toString(){
 	return this.expr.toString(this) + '?';
+}
+ExpressionOptional.prototype.toRegExpString = function toRegExpString(){
+	return '('+this.expr.toRegExpString()+')?';
 }
 ExpressionOptional.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -445,6 +547,9 @@ function ExpressionZeroOrMore(expr){
 }
 ExpressionZeroOrMore.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.expr.toString(this) + '*');
+}
+ExpressionZeroOrMore.prototype.toRegExpString = function toRegExpString(){
+	return '('+this.expr.toRegExpString()+')*';
 }
 ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -488,6 +593,9 @@ ExpressionTuple.prototype.toString = function toString(lev){
 	}else{
 		return parenIf(this, lev, this.expr.toString(this) + '{' + this.min + ',' + (typeof this.max=='number' ? this.max : 'inf') + '}');
 	}
+}
+ExpressionTuple.prototype.toRegExpString = function toRegExpString(){
+	return '('+this.expr.toRegExpString()+'){'+this.min+','+(typeof this.max=='number' ? this.max : '')+'}';
 }
 ExpressionTuple.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
