@@ -213,6 +213,9 @@ Expression.prototype.repeat = function repeat(min, max){
 		return new ExpressionTuple(this, min, max);
 	}
 }
+Expression.prototype.WS = function WS(expr){
+	return new ExpressionConcat([ this, expr ]);
+}
 
 // Only matches an EOF
 module.exports.ExpressionEOF = ExpressionEOF;
