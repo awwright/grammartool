@@ -178,10 +178,12 @@ function SymbolReference(grammar, refName){
 SymbolReference.prototype.toString = function toString(){
 	return this.ref;
 }
-SymbolReference.prototype.toRegExpString = function toRegExpString(){
+SymbolReference.prototype.toRegExpString = function toRegExpString(parents){
+	if(!Array.isArray(parents)) parents = [];
+	if(parents.indexOf(this.ref)>=0) return '<CIRCULAR:'+this.ref+'>';
 	var symbol = this.grammar.symbols[this.ref];
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
-	return symbol.definition.toRegExpString();
+	return symbol.definition.toRegExpString(parents.concat([this.ref]));
 }
 SymbolReference.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -296,7 +298,7 @@ function ExpressionCharRange(list){
 ExpressionCharRange.prototype.toString = function toString(){
 	return '[ ' + this.list.map(function(v){ return encodeString(v); }).join(' | ') + ' ]';
 }
-ExpressionCharRange.prototype.toRegExpString = function toString(){
+ExpressionCharRange.prototype.toRegExpString = function toRegExpString(){
 	function esc(c){
 		var cn = c.charCodeAt(0);
 		switch(c){
@@ -474,8 +476,8 @@ function ExpressionConcat(list){
 ExpressionConcat.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.list.map(function(v){ return v.toString(this) }).join(' '));
 }
-ExpressionConcat.prototype.toRegExpString = function toRegExpString(){
-	return this.list.map(function(v){ return v.toRegExpString(); }).join('');
+ExpressionConcat.prototype.toRegExpString = function toRegExpString(parents){
+	return this.list.map(function(v){ return v.toRegExpString(parents); }).join('');
 }
 ExpressionConcat.prototype.WS = function WS(ws){
 	var list = [];
@@ -524,8 +526,8 @@ ExpressionAlternate.prototype.toString = function toString(lev){
 	var self = this;
 	return parenIf(this, lev, this.alternates.map(function(v){ return v.toString(self) }).join(' / '));
 }
-ExpressionAlternate.prototype.toRegExpString = function toRegExpString(){
-	return '('+this.alternates.map(function(v){ return v.toRegExpString(); }).join('|')+')';
+ExpressionAlternate.prototype.toRegExpString = function toRegExpString(parents){
+	return '('+this.alternates.map(function(v){ return v.toRegExpString(parents); }).join('|')+')';
 }
 ExpressionAlternate.prototype.match = function match(state, chr){
 	var self = this;
@@ -570,8 +572,8 @@ function ExpressionOptional(expr){
 ExpressionOptional.prototype.toString = function toString(){
 	return this.expr.toString(this) + '?';
 }
-ExpressionOptional.prototype.toRegExpString = function toRegExpString(){
-	return '('+this.expr.toRegExpString()+')?';
+ExpressionOptional.prototype.toRegExpString = function toRegExpString(parents){
+	return '('+this.expr.toRegExpString(parents)+')?';
 }
 ExpressionOptional.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -611,8 +613,8 @@ function ExpressionZeroOrMore(expr){
 ExpressionZeroOrMore.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.expr.toString(this) + '*');
 }
-ExpressionZeroOrMore.prototype.toRegExpString = function toRegExpString(){
-	return '('+this.expr.toRegExpString()+')*';
+ExpressionZeroOrMore.prototype.toRegExpString = function toRegExpString(parents){
+	return '('+this.expr.toRegExpString(parents)+')*';
 }
 ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -662,8 +664,8 @@ ExpressionTuple.prototype.toString = function toString(lev){
 		return parenIf(this, lev, this.expr.toString(this) + '{' + this.min + ',' + (this.max<=1/0 ? this.max : 'inf') + '}');
 	}
 }
-ExpressionTuple.prototype.toRegExpString = function toRegExpString(){
-	return '('+this.expr.toRegExpString()+'){'+this.min+','+(typeof this.max=='number' ? this.max : '')+'}';
+ExpressionTuple.prototype.toRegExpString = function toRegExpString(parents){
+	return '('+this.expr.toRegExpString(parents)+'){'+this.min+','+(typeof this.max=='number' ? this.max : '')+'}';
 }
 ExpressionTuple.prototype.match = function match(state, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
