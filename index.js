@@ -591,10 +591,12 @@ function ExpressionTuple(expr, min, max){
 	this.max = (typeof max=='number') ? max : 1/0;
 }
 ExpressionTuple.prototype.toString = function toString(lev){
-	if(this.min===1 && this.max===null){
+	if(this.min===0 && this.max===1/0){
 		return parenIf(this, lev, this.expr.toString(this) + '*');
+	}else if(this.min===1 && this.max===1/0){
+		return parenIf(this, lev, this.expr.toString(this) + '+');
 	}else{
-		return parenIf(this, lev, this.expr.toString(this) + '{' + this.min + ',' + (typeof this.max=='number' ? this.max : 'inf') + '}');
+		return parenIf(this, lev, this.expr.toString(this) + '{' + this.min + ',' + (this.max<=1/0 ? this.max : 'inf') + '}');
 	}
 }
 ExpressionTuple.prototype.toRegExpString = function toRegExpString(){
