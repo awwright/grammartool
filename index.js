@@ -124,6 +124,31 @@ Grammar.prototype.parseExpression = function parse(terminalName, document){
 	}
 	throw new Error('Unexpected <EOF> at line '+line+':'+column+', expected: '+currentState.map(function(v){ return v.expression.expecting(v); }).join(' / '));
 }
+Grammar.prototype.referencesResursive = function referencesResursive(root){
+	var seen = {};
+	var symbols = this.symbols;
+	var list = [root];
+	while(list.length){
+		var productionName = list.shift();
+		if(!symbols[productionName]) throw new Error('Unknown reference '+productionName);
+		symbols[productionName].definition.references().forEach(function(v){
+			if(typeof v!=='string') throw new Error('Expected reference to be a string');
+			if(!seen[v]) list.push(v);
+			seen[v] = true;
+		});
+	}
+	return Object.keys(seen);
+}
+Grammar.prototype.getRecursiveRules = function getRecursiveRules(root){
+	var self = this;
+	var result = [];
+	self.referencesResursive(root).forEach(function(rule){
+		if(self.referencesResursive(rule).indexOf(rule) >= 0){
+			result.push(rule);
+		}
+	});
+}
+// @@@TODO
 Grammar.prototype.createParser = function createParser(terminalName){
 	if(terminalName===undefined || terminalName===null) terminalName = this.default;
 	
@@ -165,6 +190,9 @@ SymbolReference.prototype.match = function match(state, chr){
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
 	var expr = symbol.definition;
 	return expr.match(state.end().push(expr), chr);
+}
+SymbolReference.prototype.references = function references(){
+	return [this.ref];
 }
 SymbolReference.prototype.expecting = function expecting(state){
 	var symbol = this.grammar.symbols[this.ref];
@@ -273,7 +301,9 @@ ExpressionCharRange.prototype.toRegExpString = function toString(){
 		var cn = c.charCodeAt(0);
 		switch(c){
 			case '\\':
+			case '^':
 			case ']':
+			case '-':
 				 return '\\'+c;
 			default:
 				if(cn>=0x7F || cn<0x20){
@@ -304,6 +334,9 @@ ExpressionCharRange.prototype.match = function match(state, chr){
 	})){
 		return [ state.end() ];
 	}
+}
+ExpressionCharRange.prototype.references = function references(){
+	return [];
 }
 ExpressionCharRange.prototype.expecting = function expecting(state){
 	return this.toString();
@@ -366,6 +399,9 @@ ExpressionString.prototype.match = function match(state, chr){
 		}
 	}
 }
+ExpressionString.prototype.references = function references(){
+	return [];
+}
 ExpressionString.prototype.expecting = function expecting(state){
 	return '"' + encodeString(this.string.substring(state.offset).toString()) + '"';
 }
@@ -420,6 +456,9 @@ ExpressionStringCS.prototype.match = function match(state, chr){
 		}
 	}
 }
+ExpressionStringCS.prototype.references = function references(){
+	return [];
+}
 ExpressionStringCS.prototype.expecting = function expecting(state){
 	return JSON.stringify(this.string.substring(state.offset).toString());
 }
@@ -456,6 +495,15 @@ ExpressionConcat.prototype.match = function match(state, chr){
 	// Pass the match call off to the item in the series
 	return expr.match(next.push(expr), chr);
 }
+ExpressionConcat.prototype.references = function references(){
+	var list = [];
+	this.list.forEach(function(v){
+		v.references().forEach(function(w){
+			list.push(w);
+		});
+	});
+	return list;
+}
 ExpressionConcat.prototype.expecting = function expecting(state){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -490,6 +538,15 @@ ExpressionAlternate.prototype.match = function match(state, chr){
 		if(match) match.forEach(function(v){ results.push(v); });
 	});
 	if(results.length) return results;
+}
+ExpressionAlternate.prototype.references = function references(){
+	var list = [];
+	this.alternates.forEach(function(v){
+		v.references().forEach(function(w){
+			list.push(w);
+		});
+	});
+	return list;
 }
 ExpressionAlternate.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -530,6 +587,9 @@ ExpressionOptional.prototype.match = function match(state, chr){
 	if(match1) match1.forEach(function(v){ match.push(v); });
 	return match;
 }
+ExpressionOptional.prototype.references = function references(){
+	return this.expr.references();
+}
 ExpressionOptional.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	var match0 = this.expr.expecting(state.end().push(this.expr));
@@ -564,6 +624,9 @@ ExpressionZeroOrMore.prototype.match = function match(state, chr){
 	if(match0) match0.forEach(function(v){ match.push(v); });
 	if(match1) match1.forEach(function(v){ match.push(v); });
 	if(match.length) return match;
+}
+ExpressionZeroOrMore.prototype.references = function references(){
+	return this.expr.references();
 }
 ExpressionZeroOrMore.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
@@ -618,6 +681,9 @@ ExpressionTuple.prototype.match = function match(state, chr){
 	if(match0) match0.forEach(function(v){ match.push(v); });
 	if(match1) match1.forEach(function(v){ match.push(v); });
 	if(match.length) return match;
+}
+ExpressionTuple.prototype.references = function references(){
+	return this.expr.references();
 }
 ExpressionTuple.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
