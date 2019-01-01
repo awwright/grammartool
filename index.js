@@ -383,9 +383,9 @@ ExpressionStringCS.prototype.toString = function toString(){
 }
 ExpressionStringCS.prototype.toRegExpString = function toRegExpString(){
 	var out = '';
-	for(var i=0; i<this.lstring.length; i++){
-		var c = this.lstring[i];
-		var cn = this.lstring.charCodeAt(i);
+	for(var i=0; i<this.string.length; i++){
+		var c = this.string[i];
+		var cn = this.string.charCodeAt(i);
 		if(cn>=0x7F || cn<0x20){
 			out += '\\u' + '0000'.concat(cn.toString(16).toUpperCase()).substr(-4);
 			continue;
