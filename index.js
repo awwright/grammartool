@@ -207,16 +207,22 @@ SymbolReference.prototype.expecting = function expecting(state){
 	return expr.expecting(state.final(expr));
 }
 
-function State(expression, exit, up, offset){
+// Expression#match calls return an array of State objects
+function State(expression, exit, up, offset, value){
+	// The expression to evaluate the next character against
 	this.expression = expression;
+	// The state to return to once this state doesn't want to consume any more chararacters
 	this.exit = exit;
-	this.offset = offset;
+	// The higher-level state deferring to this one
 	this.up = up;
-	this.ended = null;
+	// Arbritarary parameter for the expression
+	this.offset = offset;
+	// Return value of the current character
+	this.value = value;
 }
 // Consume a character for the current
 State.prototype.change = function change(offset){
-	return new State(this.expression, this.exit, this.up, offset);
+	return new State(this.expression, this.exit, this.up, offset, this);
 }
 // Start matching against an expression inside the current production
 State.prototype.push = function push(expression){
@@ -229,9 +235,10 @@ State.prototype.end = function end(){
 	// return this.exit;
 }
 // Actually consume a single matched character
+// This terminates the entire production, it's only for single-caracter matches
 // Roughly the same as state.end()
 State.prototype.consume = function consume(){
-	return new State(this.exit.expression, this.exit.exit, this, this.exit.offset);
+	return new State(this.exit.expression, this.exit.exit, this.exit.up, this.exit.offset, this);
 }
 State.prototype.final = function final(expression){
 	return new State(expression, this.exit, this, 0);
@@ -689,7 +696,7 @@ ExpressionTuple.prototype.match = function match(state, addr, chr){
 	}
 	if(state.offset >= this.min){
 		// If we're past the minimum required matches, pass this match back to parent
-		var up = state.end();
+		var up = state.consume();
 		var match1 = up.expression.match(up, addr, chr);
 	}
 	var match = [];
