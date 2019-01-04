@@ -177,7 +177,10 @@ function SymbolReference(grammar, refName){
 	this.getProduction = function(){ return grammar.symbols[refName]; };
 	// this.grammar = grammar;
 	this.ref = refName;
+	// this.name = 'Reference('+refName+')';
+	this.name = refName;
 }
+SymbolReference.prototype.name = 'SymbolReference';
 SymbolReference.prototype.toString = function toString(){
 	return this.ref;
 }
@@ -317,6 +320,7 @@ function ExpressionCharRange(list){
 	this.list = list.slice();
 	this.list.sort();
 }
+ExpressionCharRange.prototype.name = 'CharRange';
 ExpressionCharRange.prototype.toString = function toString(){
 	return '[ ' + this.list.map(function(v){ return encodeString(v); }).join(' | ') + ' ]';
 }
@@ -375,6 +379,7 @@ function ExpressionString(literal){
 	this.string = literal;
 	this.lstring = literal.toLowerCase();
 }
+ExpressionString.prototype.name = 'String';
 ExpressionString.prototype.toString = function toString(){
 	return '"' + encodeString(this.string) + '"';
 }
@@ -438,6 +443,7 @@ function ExpressionStringCS(literal){
 	if(literal.length==0) throw new TypeError('Expected non-empty string for arguments[0] `match`');
 	this.string = literal;
 }
+ExpressionStringCS.prototype.name = 'StringCS';
 ExpressionStringCS.prototype.toString = function toString(){
 	return "'" + encodeString(this.string) + "'";
 }
@@ -495,6 +501,7 @@ function ExpressionConcat(list){
 	if(list.length<=1) throw new TypeError('Expected array for arguments[0] `alternates` with length >= 2');
 	this.list = list;
 }
+ExpressionConcat.prototype.name = 'Concat';
 ExpressionConcat.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.list.map(function(v){ return v.toString(this) }).join(' '));
 }
@@ -544,6 +551,7 @@ function ExpressionAlternate(alternates){
 	if(alternates.length<=1) throw new TypeError('Expected array for arguments[0] `alternates` with length >= 2');
 	this.alternates = alternates;
 }
+ExpressionAlternate.prototype.name = 'Alternate';
 ExpressionAlternate.prototype.toString = function toString(lev){
 	var self = this;
 	return parenIf(this, lev, this.alternates.map(function(v){ return v.toString(self) }).join(' / '));
@@ -589,6 +597,7 @@ function ExpressionOptional(expr){
 	if(!(expr instanceof Expression)) throw new TypeError('Expected Expression for arguments[0] `expr`');
 	this.expr = expr;
 }
+ExpressionOptional.prototype.name = 'Optional';
 ExpressionOptional.prototype.toString = function toString(){
 	return this.expr.toString(this) + '?';
 }
@@ -630,6 +639,7 @@ function ExpressionZeroOrMore(expr){
 	if(!(expr instanceof Expression)) throw new TypeError('Expected Expression for arguments[0] `expr`');
 	this.expr = expr;
 }
+ExpressionZeroOrMore.prototype.name = 'ZeroOrMore';
 ExpressionZeroOrMore.prototype.toString = function toString(lev){
 	return parenIf(this, lev, this.expr.toString(this) + '*');
 }
@@ -640,7 +650,7 @@ ExpressionZeroOrMore.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	var match0 = this.expr.match(state.push(this.expr), addr, chr);
-	var up = state.end();
+	var up = state.consume();
 	var match1 = up.expression.match(up, addr, chr);
 	var match = [];
 	if(match0) match0.forEach(function(v){ match.push(v); });
@@ -675,6 +685,7 @@ function ExpressionTuple(expr, min, max){
 	this.min = min;
 	this.max = (typeof max=='number') ? max : 1/0;
 }
+ExpressionTuple.prototype.name = 'Repeat';
 ExpressionTuple.prototype.toString = function toString(lev){
 	if(this.min===0 && this.max===1/0){
 		return parenIf(this, lev, this.expr.toString(this) + '*');
