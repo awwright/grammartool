@@ -76,7 +76,7 @@ Grammar.prototype.parseExpression = function parse(terminalName, document){
 	if(typeof document!=='string') throw new TypeError('Expected string for arguments[1] `document`');
 	var terminal = this.symbols[terminalName];
 	var expr = terminal.definition;
-	var end = new State(new ExpressionEOF);
+	var end = new State(new ExpressionEOF, null, null, 0);
 	var currentState = [
 		end.push(expr),
 	];
@@ -92,7 +92,7 @@ Grammar.prototype.parseExpression = function parse(terminalName, document){
 		var nextState = [];
 		for(var j=0; j<currentState.length; j++){
 			var st = currentState[j];
-			var matches = st.expression.match(st, chr);
+			var matches = st.expression.match(st, offset, chr);
 			if(matches) matches.forEach(function(v){
 				if(!(v instanceof State)) throw new TypeError('Expected an array of State items');
 				nextState.push(v);
@@ -112,15 +112,16 @@ Grammar.prototype.parseExpression = function parse(terminalName, document){
 	var nextState = [];
 	for(var j=0; j<currentState.length; j++){
 		var st = currentState[j];
-		var matches = st.expression.match(st, null);
+		var matches = st.expression.match(st, null, null);
 		if(matches && !Array.isArray(matches)) throw new TypeError('Expected an array from Expression#match');
 		if(matches) matches.forEach(function(v){
 			if(!(v instanceof State)) throw new TypeError('Expected an array of State items');
+			v.previous = st;
 			nextState.push(v);
 		});
 	}
 	for(var m=0; m<nextState.length; m++){
-		if(nextState[m]===end) return currentState[m];
+		if(nextState[m].exit===null) return nextState[m];
 	}
 	throw new Error('Unexpected <EOF> at line '+line+':'+column+', expected: '+currentState.map(function(v){ return v.expression.expecting(v); }).join(' / '));
 }
@@ -172,7 +173,9 @@ module.exports.SymbolReference = SymbolReference;
 inherits(SymbolReference, Expression);
 function SymbolReference(grammar, refName){
 	if(typeof refName!=='string') throw new TypeError('Expected string for arguments[0] `refName`');
-	this.grammar = grammar;
+	// Hide this behind a function as a cheap way of reducing the inspector output
+	this.getProduction = function(){ return grammar.symbols[refName]; };
+	// this.grammar = grammar;
 	this.ref = refName;
 }
 SymbolReference.prototype.toString = function toString(){
@@ -181,45 +184,57 @@ SymbolReference.prototype.toString = function toString(){
 SymbolReference.prototype.toRegExpString = function toRegExpString(parents){
 	if(!Array.isArray(parents)) parents = [];
 	if(parents.indexOf(this.ref)>=0) return '<CIRCULAR:'+this.ref+'>';
-	var symbol = this.grammar.symbols[this.ref];
+	// var symbol = this.grammar.symbols[this.ref];
+	var symbol = this.getProduction();
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
 	return symbol.definition.toRegExpString(parents.concat([this.ref]));
 }
-SymbolReference.prototype.match = function match(state, chr){
+SymbolReference.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
-	var symbol = this.grammar.symbols[this.ref];
+	var symbol = this.getProduction();
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
 	var expr = symbol.definition;
-	return expr.match(state.end().push(expr), chr);
+	return expr.match(state.final(expr), addr, chr);
 }
 SymbolReference.prototype.references = function references(){
 	return [this.ref];
 }
 SymbolReference.prototype.expecting = function expecting(state){
-	var symbol = this.grammar.symbols[this.ref];
+	var symbol = this.getProduction();
 	if(!symbol) throw new Error('Unknown symbol '+JSON.stringify(this.ref));
 	var expr = symbol.definition;
-	return expr.expecting(state.end().push(expr));
+	return expr.expecting(state.final(expr));
 }
 
-function State(expression, parent, offset){
+function State(expression, exit, up, offset){
 	this.expression = expression;
-	this.parent = parent;
+	this.exit = exit;
 	this.offset = offset;
-	this.events = [];
+	this.up = up;
+	this.ended = null;
 }
+// Consume a character for the current
 State.prototype.change = function change(offset){
-	return new State(this.expression, this.parent, offset);
+	return new State(this.expression, this.exit, this.up, offset);
 }
+// Start matching against an expression inside the current production
 State.prototype.push = function push(expression){
-	return new State(expression, this, 0);
+	return new State(expression, this, this, 0);
 }
+// The current production no longer matches, resume matching against the parent production
 State.prototype.end = function end(){
-	return this.parent;
+	//this.exit.events.push(this);
+	return new State(this.exit.expression, this.exit.exit, this, this.exit.offset);
+	// return this.exit;
 }
-State.prototype.emit = function emit(evt){
-	this.events.push(evt);
+// Actually consume a single matched character
+// Roughly the same as state.end()
+State.prototype.consume = function consume(){
+	return new State(this.exit.expression, this.exit.exit, this, this.exit.offset);
+}
+State.prototype.final = function final(expression){
+	return new State(expression, this.exit, this, 0);
 }
 
 module.exports.Expression = Expression
@@ -257,8 +272,8 @@ ExpressionEOF.prototype.match = function(state, chr){
 	// This expression is the only kind allowed to be in the top of the stack.
 	// If this is THE expression at the top of the stack, it won't have a parent.
 	// In this case, return ourselves.
-	// We could also just set `expr.parent = expr` but that seems funny to this programmer
-	if(Expression.isEOF(chr)) return state.parent ? [state.end()] : [state];
+	// We could also just set `expr.exit = expr` but that seems funny to this programmer
+	if(Expression.isEOF(chr)) return state.exit ? [state.end()] : [state];
 }
 ExpressionEOF.prototype.expecting = function expecting(state){
 	return '<EOF>';
@@ -324,7 +339,7 @@ ExpressionCharRange.prototype.toRegExpString = function toRegExpString(){
 ExpressionCharRange.prototype.concat = function concat(other){
 	return new ExpressionCharRange( this.list.concat(other) );
 }
-ExpressionCharRange.prototype.match = function match(state, chr){
+ExpressionCharRange.prototype.match = function match(state, addr, chr){
 	if(Expression.isEOF(chr)) return;
 	var chrCode = chr.charCodeAt(0);
 	// TODO optimize this
@@ -334,7 +349,7 @@ ExpressionCharRange.prototype.match = function match(state, chr){
 		if(t.length==3 && t[1]=='-') return chrCode>=t.charCodeAt(0) && chrCode<=t.charCodeAt(2);
 		throw new TypeError('Unknown range string');
 	})){
-		return [ state.end() ];
+		return [ state.consume() ];
 	}
 }
 ExpressionCharRange.prototype.references = function references(){
@@ -391,13 +406,13 @@ ExpressionString.prototype.toRegExpString = function toRegExpString(){
 	}
 	return out;
 }
-ExpressionString.prototype.match = function match(state, chr){
+ExpressionString.prototype.match = function match(state, addr, chr){
 	if(Expression.isEOF(chr)) return;
 	if(chr.toLowerCase().charCodeAt(0)==this.lstring.charCodeAt(state.offset)){
 		if(state.offset+1 < this.lstring.length){
 			return [ state.change(state.offset+1) ];
 		}else{
-			return [ state.end() ];
+			return [ state.consume() ];
 		}
 	}
 }
@@ -448,13 +463,13 @@ ExpressionStringCS.prototype.toRegExpString = function toRegExpString(){
 	}
 	return out;
 }
-ExpressionStringCS.prototype.match = function match(state, chr){
+ExpressionStringCS.prototype.match = function match(state, addr, chr){
 	if(Expression.isEOF(chr)) return;
 	if(chr.charCodeAt(0)==this.string.charCodeAt(state.offset)){
 		if(state.offset+1 < this.string.length){
 			return [ state.change(state.offset+1) ];
 		}else{
-			return [ state.end() ];
+			return [ state.consume() ];
 		}
 	}
 }
@@ -487,15 +502,15 @@ ExpressionConcat.prototype.WS = function WS(ws){
 	});
 	return new ExpressionConcat(list);
 }
-ExpressionConcat.prototype.match = function match(state, chr){
+ExpressionConcat.prototype.match = function match(state, addr, chr){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	var expr = self.list[state.offset];
 	// If we're at the last item in the series, pop our state off the stack	
-	var next = (state.offset+1 < self.list.length) ? state.change(state.offset+1) : state.end() ;
+	var next = (state.offset+1 < self.list.length) ? state.change(state.offset+1).push(expr) : state.final(expr) ;
 	// Pass the match call off to the item in the series
-	return expr.match(next.push(expr), chr);
+	return expr.match(next, addr, chr);
 }
 ExpressionConcat.prototype.references = function references(){
 	var list = [];
@@ -529,14 +544,13 @@ ExpressionAlternate.prototype.toString = function toString(lev){
 ExpressionAlternate.prototype.toRegExpString = function toRegExpString(parents){
 	return '('+this.alternates.map(function(v){ return v.toRegExpString(parents); }).join('|')+')';
 }
-ExpressionAlternate.prototype.match = function match(state, chr){
+ExpressionAlternate.prototype.match = function match(state, addr, chr){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	var results = [];
-	var next = state.end();
 	this.alternates.forEach(function(expr){
-		var match = expr.match(next.push(expr), chr);
+		var match = expr.match(state.final(expr), addr, chr);
 		if(match) match.forEach(function(v){ results.push(v); });
 	});
 	if(results.length) return results;
@@ -553,9 +567,8 @@ ExpressionAlternate.prototype.references = function references(){
 ExpressionAlternate.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	var results = [];
-	var next = state.end();
 	this.alternates.forEach(function(expr){
-		var match = expr.expecting(next.push(expr));
+		var match = expr.expecting(state.final(expr));
 		if(match) results.push(match);
 	});
 	return results.join(' / ');
@@ -575,15 +588,15 @@ ExpressionOptional.prototype.toString = function toString(){
 ExpressionOptional.prototype.toRegExpString = function toRegExpString(parents){
 	return '('+this.expr.toRegExpString(parents)+')?';
 }
-ExpressionOptional.prototype.match = function match(state, chr){
+ExpressionOptional.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	// First try to parse this as the given expression
 	// The end() call ensures we're only called once
-	var match0 = this.expr.match(state.end().push(this.expr), chr);
+	var match0 = this.expr.match(state.final(this.expr), addr, chr);
 	// Second defer the match back to the parent
 	var parent = state.end();
-	var match1 = parent.expression.match(parent, chr);
+	var match1 = parent.expression.match(parent, addr, chr);
 	var match = [];
 	if(match0) match0.forEach(function(v){ match.push(v); });
 	if(match1) match1.forEach(function(v){ match.push(v); });
@@ -594,7 +607,7 @@ ExpressionOptional.prototype.references = function references(){
 }
 ExpressionOptional.prototype.expecting = function expecting(state){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
-	var match0 = this.expr.expecting(state.end().push(this.expr));
+	var match0 = this.expr.expecting(state.final(this.expr));
 	var up = state.end();
 	var match1 = up.expression.expecting(up);
 	var match = [];
@@ -616,12 +629,12 @@ ExpressionZeroOrMore.prototype.toString = function toString(lev){
 ExpressionZeroOrMore.prototype.toRegExpString = function toRegExpString(parents){
 	return '('+this.expr.toRegExpString(parents)+')*';
 }
-ExpressionZeroOrMore.prototype.match = function match(state, chr){
+ExpressionZeroOrMore.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
-	var match0 = this.expr.match(state.push(this.expr), chr);
+	var match0 = this.expr.match(state.push(this.expr), addr, chr);
 	var up = state.end();
-	var match1 = up.expression.match(up, chr);
+	var match1 = up.expression.match(up, addr, chr);
 	var match = [];
 	if(match0) match0.forEach(function(v){ match.push(v); });
 	if(match1) match1.forEach(function(v){ match.push(v); });
@@ -667,17 +680,17 @@ ExpressionTuple.prototype.toString = function toString(lev){
 ExpressionTuple.prototype.toRegExpString = function toRegExpString(parents){
 	return '('+this.expr.toRegExpString(parents)+'){'+this.min+','+(typeof this.max=='number' ? this.max : '')+'}';
 }
-ExpressionTuple.prototype.match = function match(state, chr){
+ExpressionTuple.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
 	if(state.offset < this.max){
 		// If we haven't hit the max, test for another repeat
-		var match0 = this.expr.match(state.change(state.offset+1).push(this.expr), chr);
+		var match0 = this.expr.match(state.change(state.offset+1).push(this.expr), addr, chr);
 	}
 	if(state.offset >= this.min){
 		// If we're past the minimum required matches, pass this match back to parent
 		var up = state.end();
-		var match1 = up.expression.match(up, chr);
+		var match1 = up.expression.match(up, addr, chr);
 	}
 	var match = [];
 	if(match0) match0.forEach(function(v){ match.push(v); });

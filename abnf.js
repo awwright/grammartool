@@ -3,7 +3,7 @@ var p = require('./index.js');
 var defineCoreGrammar = require('./abnf.core.js').defineCoreGrammar;
 
 var ABNF = new p.Grammar;
-module.exports = ABNF;
+module.exports.ABNF = ABNF;
 defineCoreGrammar(ABNF);
 
 // rulelist       =  1*( rule / (*c-wsp c-nl) )
@@ -224,11 +224,3 @@ ABNF.define('prose-val', p.ExpressionConcat([
     p.ExpressionCharRange(['\x20-\x3D', '\x3F-\x7E']).any(),
     p.ExpressionStringCS('>'),
 ]));
-
-// var fileText = require('fs').readFileSync('rfc3987.abnf', 'UTF-8');
-// console.log(fileText);
-// console.log(ABNF.parse(fileText));
-// console.log(ABNF.symbols);
-// console.log(ABNF.symbols['prose-val'].toRegExp());
-
-
