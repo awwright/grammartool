@@ -211,7 +211,7 @@ SymbolReference.prototype.expecting = function expecting(state){
 }
 
 // Expression#match calls return an array of State objects
-function State(expression, exit, up, offset, value){
+function State(expression, exit, up, at, value){
 	// The expression to evaluate the next character against
 	this.expression = expression;
 	// The state to return to once this state doesn't want to consume any more chararacters
@@ -219,13 +219,13 @@ function State(expression, exit, up, offset, value){
 	// The higher-level state deferring to this one
 	this.up = up;
 	// Arbritarary parameter for the expression
-	this.offset = offset;
+	this.at = at;
 	// Return value of the current character
 	this.value = value;
 }
 // Consume a character for the current
-State.prototype.change = function change(offset){
-	return new State(this.expression, this.exit, this.up, offset, this);
+State.prototype.change = function change(at){
+	return new State(this.expression, this.exit, this.up, at, this);
 }
 // Start matching against an expression inside the current production
 State.prototype.push = function push(expression){
@@ -234,14 +234,14 @@ State.prototype.push = function push(expression){
 // The current production no longer matches, resume matching against the parent production
 State.prototype.end = function end(){
 	//this.exit.events.push(this);
-	return new State(this.exit.expression, this.exit.exit, this, this.exit.offset);
+	return new State(this.exit.expression, this.exit.exit, this, this.exit.at);
 	// return this.exit;
 }
 // Actually consume a single matched character
 // This terminates the entire production, it's only for single-caracter matches
 // Roughly the same as state.end()
 State.prototype.consume = function consume(){
-	return new State(this.exit.expression, this.exit.exit, this.exit.up, this.exit.offset, this);
+	return new State(this.exit.expression, this.exit.exit, this.exit.up, this.exit.at, this);
 }
 State.prototype.final = function final(expression){
 	return new State(expression, this.exit, this, 0);
@@ -420,9 +420,9 @@ ExpressionString.prototype.toRegExpString = function toRegExpString(){
 }
 ExpressionString.prototype.match = function match(state, addr, chr){
 	if(Expression.isEOF(chr)) return;
-	if(chr.toLowerCase().charCodeAt(0)==this.lstring.charCodeAt(state.offset)){
-		if(state.offset+1 < this.lstring.length){
-			return [ state.change(state.offset+1) ];
+	if(chr.toLowerCase().charCodeAt(0)==this.lstring.charCodeAt(state.at)){
+		if(state.at+1 < this.lstring.length){
+			return [ state.change(state.at+1) ];
 		}else{
 			return [ state.consume() ];
 		}
@@ -432,7 +432,7 @@ ExpressionString.prototype.references = function references(){
 	return [];
 }
 ExpressionString.prototype.expecting = function expecting(state){
-	return '"' + encodeString(this.string.substring(state.offset).toString()) + '"';
+	return '"' + encodeString(this.string.substring(state.at).toString()) + '"';
 }
 
 module.exports.ExpressionStringCS = ExpressionStringCS;
@@ -478,9 +478,9 @@ ExpressionStringCS.prototype.toRegExpString = function toRegExpString(){
 }
 ExpressionStringCS.prototype.match = function match(state, addr, chr){
 	if(Expression.isEOF(chr)) return;
-	if(chr.charCodeAt(0)==this.string.charCodeAt(state.offset)){
-		if(state.offset+1 < this.string.length){
-			return [ state.change(state.offset+1) ];
+	if(chr.charCodeAt(0)==this.string.charCodeAt(state.at)){
+		if(state.at+1 < this.string.length){
+			return [ state.change(state.at+1) ];
 		}else{
 			return [ state.consume() ];
 		}
@@ -490,7 +490,7 @@ ExpressionStringCS.prototype.references = function references(){
 	return [];
 }
 ExpressionStringCS.prototype.expecting = function expecting(state){
-	return JSON.stringify(this.string.substring(state.offset).toString());
+	return JSON.stringify(this.string.substring(state.at).toString());
 }
 
 module.exports.ExpressionConcat = ExpressionConcat;
@@ -520,9 +520,9 @@ ExpressionConcat.prototype.match = function match(state, addr, chr){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
-	var expr = self.list[state.offset];
+	var expr = self.list[state.at];
 	// If we're at the last item in the series, pop our state off the stack	
-	var next = (state.offset+1 < self.list.length) ? state.change(state.offset+1).push(expr) : state.final(expr) ;
+	var next = (state.at+1 < self.list.length) ? state.change(state.at+1).push(expr) : state.final(expr) ;
 	// Pass the match call off to the item in the series
 	return expr.match(next, addr, chr);
 }
@@ -538,8 +538,8 @@ ExpressionConcat.prototype.references = function references(){
 ExpressionConcat.prototype.expecting = function expecting(state){
 	var self = this;
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
-	var expr = self.list[state.offset];
-	var next = (state.offset+1 < self.list.length) ? state.change(state.offset+1) : state.end() ;
+	var expr = self.list[state.at];
+	var next = (state.at+1 < self.list.length) ? state.change(state.at+1) : state.end() ;
 	return expr.expecting(next.push(expr));
 }
 
@@ -701,11 +701,11 @@ ExpressionTuple.prototype.toRegExpString = function toRegExpString(parents){
 ExpressionTuple.prototype.match = function match(state, addr, chr){
 	if(!(state instanceof State)) throw new TypeError('Expected State for arguments[0] `state`');
 	if(typeof chr!='string' && !Expression.isEOF(chr)) throw new TypeError('Expected string for arguments[1] `chr`');
-	if(state.offset < this.max){
+	if(state.at < this.max){
 		// If we haven't hit the max, test for another repeat
-		var match0 = this.expr.match(state.change(state.offset+1).push(this.expr), addr, chr);
+		var match0 = this.expr.match(state.change(state.at+1).push(this.expr), addr, chr);
 	}
-	if(state.offset >= this.min){
+	if(state.at >= this.min){
 		// If we're past the minimum required matches, pass this match back to parent
 		var up = state.consume();
 		var match1 = up.expression.match(up, addr, chr);
